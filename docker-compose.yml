@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskmanager_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: taskmanager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:7-jammy
+    container_name: taskmanager_mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: taskmanager_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: taskmanager
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      MONGO_URI: mongodb://mongo:27017/taskmanager
+      JWT_SECRET: change_this_to_a_secure_random_string_in_production
+      JWT_EXPIRES_IN: 7d
+      BCRYPT_ROUNDS: 12
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+volumes:
+  pg_data:
+  mongo_data:
