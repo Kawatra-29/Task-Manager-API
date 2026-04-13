@@ -26,10 +26,42 @@ const taskSchema = new mongoose.Schema(
       },
       default: 'pending',
     },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
     userId: {
-      type: String, // PostgreSQL UUID stored as string
+      type: String,   // PostgreSQL UUID stored as string
       required: [true, 'User ID is required'],
       index: true,
+    },
+    // ── NEW: Category reference (PostgreSQL UUID stored as string) ────────────
+    categoryId: {
+      type: String,   // UUID from PostgreSQL categories table
+      default: null,
+      index: true,
+    },
+    categoryName: {
+      type: String,   // Denormalised for fast reads without joins
+      default: null,
+    },
+    // ── NEW: Tags — free-form, lowercase-normalised ───────────────────────────
+    tags: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (arr) => arr.length <= 20,
+        message: 'A task can have at most 20 tags',
+      },
+    },
+    // ── NEW: Reminder tracking ────────────────────────────────────────────────
+    reminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    reminderScheduledFor: {
+      type: Date,
+      default: null,
     },
   },
   {
@@ -46,8 +78,12 @@ const taskSchema = new mongoose.Schema(
   }
 );
 
-// Index for efficient user-scoped task queries
+// Compound indexes for common query patterns
 taskSchema.index({ userId: 1, createdAt: -1 });
+taskSchema.index({ userId: 1, status: 1 });
+taskSchema.index({ userId: 1, categoryId: 1 });
+taskSchema.index({ userId: 1, tags: 1 });
+taskSchema.index({ dueDate: 1, status: 1, reminderSentAt: 1 });
 
 const Task = mongoose.model('Task', taskSchema);
 

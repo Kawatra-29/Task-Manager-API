@@ -2,11 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies first (layer caching)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 COPY . .
+
+RUN mkdir -p logs
 
 EXPOSE 3000
 

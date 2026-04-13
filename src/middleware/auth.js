@@ -1,10 +1,9 @@
-const jwt = require('jsonwebtoken');
+const jwt  = require('jsonwebtoken');
 const User = require('../models/User');
 
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         status: 'error',
@@ -27,7 +26,6 @@ const authenticate = async (req, res, next) => {
     const user = await User.findByPk(decoded.userId, {
       attributes: ['id', 'email', 'name', 'created_at'],
     });
-
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'User no longer exists' });
     }

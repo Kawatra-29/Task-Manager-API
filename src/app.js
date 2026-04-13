@@ -1,31 +1,20 @@
 require('dotenv').config();
-const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const morgan = require('morgan');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./swagger');
+const express      = require('express');
+const helmet       = require('helmet');
+const cors         = require('cors');
+const morgan       = require('morgan');
+const swaggerUi    = require('swagger-ui-express');
+const swaggerSpec  = require('./config/swagger');
 
-const authRoutes = require('./routes/auth');
-const taskRoutes = require('./routes/tasks');
+const authRoutes     = require('./routes/auth');
+const taskRoutes     = require('./routes/tasks');
+const categoryRoutes = require('./routes/categories');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-// Security & parsing middleware
-// Relax helmet CSP for Swagger UI
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
-        styleSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
-        imgSrc: ["'self'", 'data:', 'cdn.jsdelivr.net'],
-      },
-    },
-  })
-);
+// Relax helmet's CSP so Swagger UI assets load correctly
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -34,21 +23,13 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Task Manager API is running',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Swagger UI
+// ── Swagger UI ─────────────────────────────────────────────────────────────────
 const swaggerUiOptions = {
   customSiteTitle: 'Task Manager API Docs',
   customCss: `
-    .swagger-ui .topbar { background-color: #1a1a2e; }
-    .swagger-ui .info .title { font-size: 2rem; color: #1a1a2e; }
+    .topbar-wrapper img { content: url('https://upload.wikimedia.org/wikipedia/commons/a/ab/Swagger-logo.png'); }
+    .swagger-ui .topbar { background-color: #1e293b; }
+    .swagger-ui .info .title { font-size: 2rem; }
   `,
   swaggerOptions: {
     persistAuthorization: true,
@@ -59,19 +40,31 @@ const swaggerUiOptions = {
   },
 };
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, swaggerUiOptions)
+);
 
-// Serve raw OpenAPI JSON spec
-app.get('/api-docs.json', (req, res) => {
+// Expose raw OpenAPI JSON (useful for code generation tools)
+app.get('/api/docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/tasks', taskRoutes);
+// ── Health check ───────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status:    'success',
+    message:   'Task Manager API v2 is running',
+    timestamp: new Date().toISOString(),
+  });
+});
 
-// 404 & global error handling
+app.use('/api/auth',       authRoutes);
+app.use('/api/tasks',      taskRoutes);
+app.use('/api/categories', categoryRoutes);
+
 app.use(notFound);
 app.use(errorHandler);
 
